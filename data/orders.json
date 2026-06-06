@@ -1,0 +1,64 @@
+[
+  {
+    "orderId": "ORD-1001",
+    "tableId": "3",
+    "items": [
+      {
+        "name": "Classic Resto Smash Burger",
+        "qty": 1,
+        "price": 15.00
+      },
+      {
+        "name": "Classic Italian Tiramisu",
+        "qty": 1,
+        "price": 8.50
+      },
+      {
+        "name": "Iced Vanilla Cold Brew",
+        "qty": 1,
+        "price": 5.50
+      }
+    ],
+    "total": 29.00,
+    "status": "Served",
+    "createdAt": "2026-06-06T12:30:00Z"
+  },
+  {
+    "orderId": "ORD-1002",
+    "tableId": "1",
+    "items": [
+      {
+        "name": "Crispy Calamari Bites",
+        "qty": 1,
+        "price": 12.00
+      },
+      {
+        "name": "Fresh Watermelon Mint Cooler",
+        "qty": 2,
+        "price": 6.00
+      }
+    ],
+    "total": 24.00,
+    "status": "Preparing",
+    "createdAt": "2026-06-06T14:15:00Z"
+  },
+  {
+    "orderId": "ORD-1003",
+    "tableId": "5",
+    "items": [
+      {
+        "name": "Neapolitan Pepperoni Pizza",
+        "qty": 1,
+        "price": 16.50
+      },
+      {
+        "name": "Truffle Garlic Parmesan Fries",
+        "qty": 2,
+        "price": 8.50
+      }
+    ],
+    "total": 33.50,
+    "status": "Pending",
+    "createdAt": "2026-06-06T15:10:00Z"
+  }
+]

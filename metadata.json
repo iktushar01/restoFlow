@@ -1,0 +1,6 @@
+{
+  "name": "RestoFlow",
+  "description": "Smart Restaurant Ordering System with interactive menus, table-based QR ordering, a direct cart checkout, and an expressive owner dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

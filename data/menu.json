@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "name": "Truffle Garlic Parmesan Fries",
+    "price": 8.50,
+    "category": "Starters",
+    "description": "Crispy house-cut fries tossed in white truffle oil, grated parmesan, fresh parsley, and garlic aioli.",
+    "image": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 2,
+    "name": "Crispy Calamari Bites",
+    "price": 12.00,
+    "category": "Starters",
+    "description": "Lightly seasoned tender calamari served with charred lemon and house zesty remoulade.",
+    "image": "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 3,
+    "name": "Classic Resto Smash Burger",
+    "price": 15.00,
+    "category": "Main Course",
+    "description": "Double dry-aged smash patties, melty cheddar, house burger sauce, and caramelized onions on toasted brioche.",
+    "image": "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 4,
+    "name": "Neapolitan Pepperoni Pizza",
+    "price": 16.50,
+    "category": "Main Course",
+    "description": "San Marzano tomatoes, fresh mozzarella, spicy pepperoni slices, fresh basil, and a hot honey drizzle.",
+    "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 5,
+    "name": "Wild Mushroom Tagliatelle",
+    "price": 18.00,
+    "category": "Main Course",
+    "description": "Handmade tagliatelle, sautéed wild porcini mushrooms, and creamy white wine sauce, finished with shaved black truffle.",
+    "image": "https://images.unsplash.com/photo-1645112411341-6c4fd023714a?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 6,
+    "name": "Iced Vanilla Cold Brew",
+    "price": 5.50,
+    "category": "Drinks",
+    "description": "Our signature 18-hour cold brew, organic Madagascar vanilla, and cold foaming oat milk.",
+    "image": "https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 7,
+    "name": "Fresh Watermelon Mint Cooler",
+    "price": 6.00,
+    "category": "Drinks",
+    "description": "Cold-pressed fresh watermelon juice, key lime juice, muddled wild mint, and organic blue agave.",
+    "image": "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 8,
+    "name": "Belgian Chocolate Fudge Lava Cake",
+    "price": 9.50,
+    "category": "Dessert",
+    "description": "Warm chocolate cake with a molten premium dark chocolate center, served with a scoop of house vanilla bean ice cream.",
+    "image": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80"
+  },
+  {
+    "id": 9,
+    "name": "Classic Italian Tiramisu",
+    "price": 8.50,
+    "category": "Dessert",
+    "description": "Espresso-soaked coffee ladyfingers, velvety whipped layers of mascarpone cream, dusted with premium dark cocoa powder.",
+    "image": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=500&auto=format&fit=crop&q=80"
+  }
+]
