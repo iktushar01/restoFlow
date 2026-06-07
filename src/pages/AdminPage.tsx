@@ -10,7 +10,13 @@ import {
   User, 
   DollarSign, 
   Layers,
-  AlertCircle
+  AlertCircle,
+  PlusCircle,
+  FileImage,
+  Utensils,
+  ChevronDown,
+  ChevronUp,
+  Pizza
 } from "lucide-react";
 
 interface OrderItem {
@@ -34,6 +40,62 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [pollingActive, setPollingActive] = useState<boolean>(true);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Menu Creation Form State
+  const [showMenuForm, setShowMenuForm] = useState<boolean>(false);
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [category, setCategory] = useState("Main Course");
+  const [description, setDescription] = useState("");
+  const [image, setImage] = useState("");
+  const [menuSubmitting, setMenuSubmitting] = useState(false);
+  const [menuError, setMenuError] = useState<string | null>(null);
+
+  const handleCreateMenuItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMenuError(null);
+    setMenuSubmitting(true);
+
+    if (!name || !price) {
+      setMenuError("Name and Price are mandatory.");
+      setMenuSubmitting(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/menu", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          price: parseFloat(price),
+          category,
+          description,
+          image: image || undefined
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to write new food item to backend.");
+      }
+
+      // Success
+      setName("");
+      setPrice("");
+      setCategory("Main Course");
+      setDescription("");
+      setImage("");
+      
+      alert(`Food "${name}" has been uploaded & published to the digital menu successfully!`);
+      setShowMenuForm(false);
+    } catch (err: any) {
+      setMenuError(err.message);
+    } finally {
+      setMenuSubmitting(false);
+    }
+  };
 
   const fetchOrders = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -132,7 +194,28 @@ export default function AdminPage() {
         </div>
 
         {/* Polling controllers */}
-        <div className="flex items-center gap-3 self-start sm:self-center">
+        <div className="flex flex-wrap items-center gap-3 self-start sm:self-center">
+          <button
+            onClick={() => setShowMenuForm(!showMenuForm)}
+            className={`rounded-xl px-4 py-2.5 text-xs font-bold leading-none flex items-center gap-2 border transition duration-200 cursor-pointer ${
+              showMenuForm
+                ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/10 hover:shadow-lg hover:-translate-y-0.5"
+            }`}
+          >
+            {showMenuForm ? (
+              <>
+                <span>Hide Creator</span>
+                <ChevronUp className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                <PlusCircle className="h-4 w-4" />
+                <span>Create Food Dish</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={() => setPollingActive(!pollingActive)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 border transition ${
@@ -156,6 +239,178 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Culinary lab Creator Panel */}
+      {showMenuForm && (
+        <form onSubmit={handleCreateMenuItem} className="rounded-2xl border border-indigo-100 bg-white p-6 md:p-8 shadow-xl space-y-6 relative overflow-hidden animate-scaleIn text-left">
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-indigo-600" />
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
+            <div className="text-left">
+              <h3 className="font-heading text-lg font-black text-gray-950 flex items-center gap-2">
+                <Utensils className="h-5 w-5 text-indigo-600" />
+                Create New Menu Dish
+              </h3>
+              <p className="text-xs text-gray-400 font-semibold leading-normal">
+                Publish organic details to tables instantly when creating your customized restaurant dishes.
+              </p>
+            </div>
+            {menuError && (
+              <span className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-1.5 text-xs text-rose-850 font-bold">
+                ⚠️ {menuError}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            {/* Input Side */}
+            <div className="md:col-span-7 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                    Dish/Item Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Avocado Toast with Poached Egg"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all text-gray-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                    Price USD ($) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="e.g. 11.50"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all text-gray-950"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                    Category Choice
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-750 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all cursor-pointer"
+                  >
+                    <option value="Starters">Starters 🥗</option>
+                    <option value="Main Course">Main Course 🍔</option>
+                    <option value="Drinks">Drinks ☕</option>
+                    <option value="Dessert">Dessert 🍰</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                    Menu Photo URL Link
+                  </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+                      <FileImage className="h-4 w-4" />
+                    </span>
+                    <input
+                      type="url"
+                      value={image}
+                      onChange={(e) => setImage(e.target.value)}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3.5 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all text-gray-950"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                  Food Recipe & Description Details
+                </label>
+                <textarea
+                  rows={2}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Fresh organic smashed avocados, warm pasture raised eggs, toasted black sesame..."
+                  className="w-full rounded-xl border border-gray-200 bg-white p-3.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all text-gray-950"
+                />
+              </div>
+            </div>
+
+            {/* Presets Grid */}
+            <div className="md:col-span-5 bg-slate-50 border border-gray-100 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+              <div className="space-y-2">
+                <h4 className="text-xs font-extrabold text-gray-950 uppercase tracking-wide flex items-center gap-1.5">
+                  <Pizza className="h-4 w-4 text-indigo-650" />
+                  Visual Preset Lab
+                </h4>
+                <p className="text-[10px] text-gray-400 font-semibold leading-normal">
+                  No camera? Tap any category preset photo to quickly bind a high-resolution culinary image:
+                </p>
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {[
+                    { label: "Main", src: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=80" },
+                    { label: "Pizza", src: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80" },
+                    { label: "Fries", src: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop&q=80" },
+                    { label: "Cake", src: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80" }
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setImage(preset.src)}
+                      className={`group relative h-12 rounded-lg border overflow-hidden transition-all duration-200 cursor-pointer ${
+                        image === preset.src 
+                          ? "border-indigo-600 ring-2 ring-indigo-500/20 scale-[1.03]" 
+                          : "border-gray-200 opacity-75 hover:opacity-100 hover:scale-[1.01]"
+                      }`}
+                    >
+                      <img src={preset.src} alt={preset.label} className="h-full w-full object-cover" />
+                      <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-bold uppercase tracking-wider text-center py-0.5">
+                        {preset.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setName("");
+                    setPrice("");
+                    setCategory("Main Course");
+                    setDescription("");
+                    setImage("");
+                  }}
+                  className="flex-1 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-gray-900 font-bold text-xs py-3.5 transition hover:bg-gray-50 cursor-pointer"
+                >
+                  Reset Form
+                </button>
+                <button
+                  type="submit"
+                  disabled={menuSubmitting}
+                  className="flex-2 rounded-xl bg-indigo-600 hover:bg-indigo-750 text-white font-black text-xs py-3.5 transition shadow-lg shadow-indigo-600/10 hover:shadow-xl disabled:opacity-50 cursor-pointer"
+                >
+                  {menuSubmitting ? "Uploading Dish..." : "Save & Publish"}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </form>
+      )}
 
       {/* Primary Analytics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -294,113 +549,219 @@ export default function AdminPage() {
             <p className="text-xs text-gray-500 max-w-sm mx-auto">There are no orders stored in orders.json. Go to the menu or a table to submit your first demo ticket!</p>
           </div>
         ) : (
-          /* Table style layout for professional order monitoring */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-700 min-w-[700px]">
-              
-              <thead className="bg-slate-50 border-b border-gray-100 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="py-4 px-6">ID & Date</th>
-                  <th className="py-4 px-6 text-center">Table / Spot</th>
-                  <th className="py-4 px-6">Dish Elements Ordered</th>
-                  <th className="py-4 px-6 text-right">Sum Fee</th>
-                  <th className="py-4 px-6 text-center">Current State</th>
-                  <th className="py-4 px-6 text-center">Admin Actions Workflow</th>
-                </tr>
-              </thead>
+          <div>
+            {/* Desktop Structured Table (Visible only on md or larger viewports) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs text-gray-700 min-w-[700px]">
+                <thead className="bg-slate-50 border-b border-gray-100 text-gray-500 font-bold uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-4 px-6">ID & Date</th>
+                    <th className="py-4 px-6 text-center">Table / Spot</th>
+                    <th className="py-4 px-6">Dish Elements Ordered</th>
+                    <th className="py-4 px-6 text-right">Sum Fee</th>
+                    <th className="py-4 px-6 text-center">Current State</th>
+                    <th className="py-4 px-6 text-center">Admin Actions Workflow</th>
+                  </tr>
+                </thead>
 
-              <tbody className="divide-y divide-gray-50 font-medium">
-                {orders.map((ord) => {
-                  
-                  // Status tag colors
-                  const statusColors = {
-                    Pending: "bg-amber-50 text-amber-700 border-amber-100",
-                    Preparing: "bg-blue-50 text-blue-700 border-blue-100",
-                    Served: "bg-emerald-50 text-emerald-700 border-emerald-100"
-                  };
+                <tbody className="divide-y divide-gray-50 font-medium">
+                  {orders.map((ord) => {
+                    const statusColors = {
+                      Pending: "bg-amber-50 text-amber-700 border-amber-100",
+                      Preparing: "bg-blue-50 text-blue-700 border-blue-100",
+                      Served: "bg-emerald-50 text-emerald-700 border-emerald-100"
+                    };
 
-                  return (
-                    <tr key={ord.orderId} className="hover:bg-amber-50/5 transition">
+                    return (
+                      <tr key={ord.orderId} className="hover:bg-amber-50/5 transition">
+                        
+                        {/* ID and Date */}
+                        <td className="py-4 px-6 space-y-0.5">
+                          <span className="font-mono font-extrabold text-[13px] bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200">
+                            {ord.orderId}
+                          </span>
+                          <p className="text-[10px] text-gray-400 font-semibold font-mono">
+                            {new Date(ord.createdAt).toLocaleTimeString()}
+                          </p>
+                        </td>
+
+                        {/* Seat */}
+                        <td className="py-4 px-6 text-center text-left">
+                          <span className={`inline-block rounded-lg px-2.5 py-1 text-xs font-bold leading-none ${
+                            ord.tableId === "Takeaway" 
+                              ? "bg-gray-100 text-gray-800 border border-gray-200"
+                              : "bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold"
+                          }`}>
+                            {ord.tableId === "Takeaway" ? "Takeaway 🛍️" : `Table {ord.tableId} 🪑`}
+                          </span>
+                        </td>
+
+                        {/* Dishes summary */}
+                        <td className="py-4 px-6 max-w-xs text-left">
+                          <ul className="space-y-1 text-gray-800 font-semibold">
+                            {ord.items.map((it, itemIdx) => (
+                              <li key={itemIdx} className="flex justify-between text-xs">
+                                <span>
+                                  <span className="text-indigo-650 font-bold">{it.qty}x</span> {it.name}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+
+                        {/* Value payed */}
+                        <td className="py-4 px-6 text-right font-mono font-extrabold text-gray-950 text-[13px]">
+                          ${ord.total.toFixed(2)}
+                        </td>
+
+                        {/* Status pill */}
+                        <td className="py-4 px-6 text-center">
+                          <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold border ${statusColors[ord.status]}`}>
+                            {ord.status}
+                          </span>
+                        </td>
+
+                        {/* Action buttons */}
+                        <td className="py-4 px-6 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {ord.status === "Pending" && (
+                              <button
+                                onClick={() => updateOrderStatus(ord.orderId, "Preparing")}
+                                disabled={actionInProgress === ord.orderId}
+                                className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] uppercase font-bold py-1.5 px-3 transition disabled:opacity-50 cursor-pointer"
+                              >
+                                Cook Food
+                              </button>
+                            )}
+                            {ord.status === "Preparing" && (
+                              <button
+                                onClick={() => updateOrderStatus(ord.orderId, "Served")}
+                                disabled={actionInProgress === ord.orderId}
+                                className="rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] uppercase font-bold py-1.5 px-3 transition disabled:opacity-50 cursor-pointer"
+                              >
+                                Dispatch Food
+                              </button>
+                            )}
+                            {ord.status === "Served" && (
+                              <span className="text-[10px] font-bold text-gray-400">✓ Served to Table</span>
+                            )}
+                          </div>
+                        </td>
+
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Adaptive Ticket Grid (Rendered only on screens below md breakpoint) */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {orders.map((ord) => {
+                const statusStyles = {
+                  Pending: {
+                    badge: "bg-amber-50 text-amber-700 border-amber-100",
+                    indicator: "bg-amber-500"
+                  },
+                  Preparing: {
+                    badge: "bg-blue-50 text-blue-700 border-blue-100",
+                    indicator: "bg-blue-500"
+                  },
+                  Served: {
+                    badge: "bg-emerald-50 text-emerald-700 border-emerald-100",
+                    indicator: "bg-emerald-500"
+                  }
+                };
+                const currentStyle = statusStyles[ord.status];
+
+                return (
+                  <div key={ord.orderId} className="p-4 space-y-4 text-left hover:bg-slate-50/40 transition">
+                    
+                    {/* Header: Ticket ID & Time & Table Badge */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-xs text-gray-950 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-150">
+                          #{ord.orderId}
+                        </span>
+                        <span className="text-[10px] font-mono text-gray-400 font-bold">
+                          {new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                       
-                      {/* ID and Date */}
-                      <td className="py-4 px-6 space-y-0.5">
-                        <span className="font-mono font-extrabold text-[13px] bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200">
-                          {ord.orderId}
-                        </span>
-                        <p className="text-[10px] text-gray-400 font-semibold font-mono">
-                          {new Date(ord.createdAt).toLocaleTimeString()}
-                        </p>
-                      </td>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold border ${currentStyle.badge}`}>
+                        {ord.status}
+                      </span>
+                    </div>
 
-                      {/* Seat */}
-                      <td className="py-4 px-6 text-center">
-                        <span className={`inline-block rounded-lg px-2.5 py-1 text-xs font-bold leading-none ${
-                          ord.tableId === "Takeaway" 
-                            ? "bg-gray-100 text-gray-800 border border-gray-200"
-                            : "bg-indigo-50 text-indigo-700 border border-indigo-100 font-semibold"
-                        }`}>
-                          {ord.tableId === "Takeaway" ? "Takeaway 🛍️" : `Table ${ord.tableId} 🪑`}
+                    {/* Meta: Table details & billing */}
+                    <div className="flex justify-between items-center text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase text-gray-400 font-bold block leading-none">Spot</span>
+                        <span className="font-bold text-gray-900 block mt-0.5">
+                          {ord.tableId === "Takeaway" ? "🛍️ Takeaway Counter" : `🪑 Table ${ord.tableId}`}
                         </span>
-                      </td>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase text-gray-400 font-bold block leading-none">Grand Total</span>
+                        <span className="font-mono font-black text-[14px] text-gray-950 block mt-0.5">
+                          ${ord.total.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
 
-                      {/* Dishes summary */}
-                      <td className="py-4 px-6 max-w-xs">
-                        <ul className="space-y-1 text-gray-800 font-semibold">
-                          {ord.items.map((it, itemIdx) => (
-                            <li key={itemIdx} className="flex justify-between text-xs">
-                              <span>
-                                <span className="text-indigo-650 font-bold">{it.qty}x</span> {it.name}
+                    {/* Dish Items listed nested */}
+                    <div className="rounded-xl border border-gray-150/40 bg-slate-50/55 p-3">
+                      <ul className="space-y-1.5">
+                        {ord.items.map((it, idx) => (
+                          <li key={idx} className="flex justify-between items-center text-xs font-bold text-gray-800">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] font-mono font-black">
+                                {it.qty}x
                               </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </td>
+                              <span className="text-gray-900 leading-tight">{it.name}</span>
+                            </span>
+                            <span className="text-gray-400 font-mono text-[11px] font-medium">
+                              ${(it.price * it.qty).toFixed(2)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
 
-                      {/* Value payed */}
-                      <td className="py-4 px-6 text-right font-mono font-extrabold text-gray-950 text-[13px]">
-                        ${ord.total.toFixed(2)}
-                      </td>
-
-                      {/* Status pill */}
-                      <td className="py-4 px-6 text-center">
-                        <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold border ${statusColors[ord.status]}`}>
-                          {ord.status}
-                        </span>
-                      </td>
-
-                      {/* Action buttons */}
-                      <td className="py-4 px-6 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {ord.status === "Pending" && (
-                            <button
-                              onClick={() => updateOrderStatus(ord.orderId, "Preparing")}
-                              disabled={actionInProgress === ord.orderId}
-                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] uppercase font-bold py-1.5 px-3 transition disabled:opacity-50"
-                            >
-                              Cook Food
-                            </button>
-                          )}
-                          {ord.status === "Preparing" && (
-                            <button
-                              onClick={() => updateOrderStatus(ord.orderId, "Served")}
-                              disabled={actionInProgress === ord.orderId}
-                              className="rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] uppercase font-bold py-1.5 px-3 transition disabled:opacity-50"
-                            >
-                              Dispatch Food
-                            </button>
-                          )}
-                          {ord.status === "Served" && (
-                            <span className="text-[10px] font-bold text-gray-400">✓ Served to Table</span>
-                          )}
+                    {/* Mobile Action triggers */}
+                    <div>
+                      {ord.status === "Pending" && (
+                        <button
+                          onClick={() => updateOrderStatus(ord.orderId, "Preparing")}
+                          disabled={actionInProgress === ord.orderId}
+                          className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-3.5 transition flex items-center justify-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+                          <span>Cook Food Dish</span>
+                        </button>
+                      )}
+                      {ord.status === "Preparing" && (
+                        <button
+                          onClick={() => updateOrderStatus(ord.orderId, "Served")}
+                          disabled={actionInProgress === ord.orderId}
+                          className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3.5 transition flex items-center justify-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                          <span>Dispatch to Guest Table</span>
+                        </button>
+                      )}
+                      {ord.status === "Served" && (
+                        <div className="w-full rounded-xl border border-gray-150 bg-gray-50/50 py-2.5 text-center text-[11px] font-extrabold uppercase tracking-wide text-gray-400 block">
+                          ✓ Served Successfully
                         </div>
-                      </td>
+                      )}
+                    </div>
 
-                    </tr>
-                  );
-                })}
-              </tbody>
+                  </div>
+                );
+              })}
+            </div>
 
-            </table>
           </div>
         )}
 

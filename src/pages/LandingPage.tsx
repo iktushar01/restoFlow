@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 import { 
   QrCode, 
   ChefHat, 
@@ -18,8 +19,13 @@ import {
 export default function LandingPage() {
   const navigate = useNavigate();
   const { setTableId, addToast } = useCart();
+  const { user } = useAuth();
 
   const handleSimulateScan = (id: number) => {
+    if (user?.role === "admin") {
+      addToast("Switch to a Customer account using logout to test table simulations!", "error");
+      return;
+    }
     setTableId(String(id));
     addToast(`Successfully Simulated QR Code Scan for Table ${id}!`, "success");
     navigate(`/table/${id}`);
@@ -60,20 +66,37 @@ export default function LandingPage() {
 
               {/* CTAs */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4">
-                <Link
-                  to="/menu"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/15 transition-all hover:bg-indigo-700 hover:-translate-y-0.5"
-                >
-                  Explore Digital Menu
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <a
-                  href="#qr-tables-section"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-6 py-3.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-300"
-                >
-                  <QrCode className="h-4.5 w-4.5 text-indigo-600" />
-                  Simulate QR Table Order
-                </a>
+                {user?.role === "admin" ? (
+                  <Link
+                    to="/admin"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/15 transition-all hover:bg-indigo-700 hover:-translate-y-0.5"
+                  >
+                    Go to Admin Workspace
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      to="/menu"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/15 transition-all hover:bg-indigo-700 hover:-translate-y-0.5"
+                    >
+                      Explore Digital Menu
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <a
+                      href="#qr-tables"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const el = document.getElementById("qr-tables-section");
+                        if (el) el.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-white border border-gray-200 px-6 py-3.5 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:bg-gray-50 hover:border-gray-300"
+                    >
+                      <QrCode className="h-4.5 w-4.5 text-indigo-600" />
+                      Simulate QR Table Order
+                    </a>
+                  </>
+                )}
               </div>
 
               {/* Mini Social Metrics */}

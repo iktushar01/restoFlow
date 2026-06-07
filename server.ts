@@ -1,216 +1,209 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import dotenv from "dotenv";
-import { MongoClient, type Collection, type Db, type Document } from "mongodb";
 import { createServer as createViteServer } from "vite";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
+// Load Environment variables
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 
 app.use(express.json());
 
-interface MenuItem extends Document {
-  id: number;
-  name: string;
-  price: number;
-  category: string;
-  description: string;
-  image: string;
-}
-
-interface TableRecord extends Document {
-  id: number;
-}
-
-interface OrderRecord extends Document {
-  orderId: string;
-  tableId: string;
-  items: Array<{
-    name: string;
-    qty: number;
-    price: number;
-  }>;
-  total: number;
-  status: "Pending" | "Preparing" | "Served";
-  createdAt: string;
-  paymentMethod?: string;
-}
-
-// Seed data is kept in JSON for first-run MongoDB bootstrap only.
+// Path Helpers for the legacy JSON files to seed if database is blank
 const dataDir = path.join(process.cwd(), "data");
 const menuPath = path.join(dataDir, "menu.json");
 const tablesPath = path.join(dataDir, "tables.json");
-const ordersSeedPath = path.join(dataDir, "orders.json");
+const ordersPath = path.join(dataDir, "orders.json");
 
-let mongoClient: MongoClient | null = null;
-let mongoDb: Db | null = null;
-let seedPromise: Promise<void> | null = null;
+// Define MongoDB schemas & models
+const menuItemSchema = new mongoose.Schema({
+  id: { type: Number, required: true, unique: true },
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  category: { type: String, required: true },
+  description: { type: String, default: "" },
+  image: { type: String, required: true }
+});
+const MenuItem = mongoose.model("MenuItem", menuItemSchema);
 
-function readSeedFile<T>(filePath: string, fallback: T): T {
+const tableSchema = new mongoose.Schema({
+  id: { type: Number, required: true, unique: true }
+});
+const TableItem = mongoose.model("TableItem", tableSchema);
+
+const orderSchema = new mongoose.Schema({
+  orderId: { type: String, required: true, unique: true },
+  tableId: { type: String, required: true },
+  items: [
+    {
+      name: { type: String, required: true },
+      price: { type: Number, required: true },
+      qty: { type: Number, required: true }
+    }
+  ],
+  total: { type: Number, required: true },
+  status: { type: String, default: "Pending" },
+  createdAt: { type: Date, default: Date.now }
+});
+const OrderItem = mongoose.model("OrderItem", orderSchema);
+
+// Connection URI setup
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://iktushar01:tusharToa.123@learningproject.3djrvwy.mongodb.net/?appName=learningProject";
+
+// Establish Connection & trigger Seeding
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log("Connected to MongoDB successfully!");
+    seedDatabase();
+  })
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB:", err);
+  });
+
+// Seed data from JSON to MongoDB if the collection is empty
+async function seedDatabase() {
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-async function getDb(): Promise<Db> {
-  if (mongoDb) {
-    return mongoDb;
-  }
-
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error("MONGODB_URI is not configured.");
-  }
-
-  mongoClient = new MongoClient(uri);
-  await mongoClient.connect();
-  mongoDb = mongoClient.db(process.env.MONGODB_DB || "restoflow");
-  return mongoDb;
-}
-
-function withoutMongoId<T extends Document>(doc: T): Omit<T, "_id"> {
-  const { _id, ...rest } = doc;
-  return rest;
-}
-
-async function getCollection<T extends Document>(name: string): Promise<Collection<T>> {
-  const db = await getDb();
-  if (!seedPromise) {
-    seedPromise = seedDatabase(db);
-  }
-  await seedPromise;
-  return db.collection<T>(name);
-}
-
-async function seedDatabase(db: Db) {
-  const menu = db.collection<MenuItem>("menu");
-  const tables = db.collection<TableRecord>("tables");
-  const orders = db.collection<OrderRecord>("orders");
-
-  await Promise.all([
-    menu.createIndex({ id: 1 }, { unique: true }),
-    tables.createIndex({ id: 1 }, { unique: true }),
-    orders.createIndex({ orderId: 1 }, { unique: true }),
-    orders.createIndex({ createdAt: -1 }),
-  ]);
-
-  const [menuCount, tableCount, orderCount] = await Promise.all([
-    menu.countDocuments(),
-    tables.countDocuments(),
-    orders.countDocuments(),
-  ]);
-
-  if (menuCount === 0) {
-    const seedMenu = readSeedFile<MenuItem[]>(menuPath, []);
-    if (seedMenu.length > 0) {
-      await menu.insertMany(seedMenu);
+    // 1. Seed Menu Items
+    const menuCount = await MenuItem.countDocuments();
+    if (menuCount === 0) {
+      console.log("Database contains 0 Menu Items. Attempting to seed from menu.json...");
+      if (fs.existsSync(menuPath)) {
+        const raw = fs.readFileSync(menuPath, "utf-8");
+        const items = JSON.parse(raw);
+        if (items && items.length > 0) {
+          await MenuItem.insertMany(items);
+          console.log(`Seeded ${items.length} menu items from JSON template to MongoDB!`);
+        }
+      }
     }
-  }
 
-  if (tableCount === 0) {
-    const seedTables = readSeedFile<TableRecord[]>(tablesPath, []);
-    if (seedTables.length > 0) {
-      await tables.insertMany(seedTables);
+    // 2. Seed Tables
+    const tablesCount = await TableItem.countDocuments();
+    if (tablesCount === 0) {
+      console.log("Database contains 0 Table spot entries. Seeding from tables.json...");
+      if (fs.existsSync(tablesPath)) {
+        const raw = fs.readFileSync(tablesPath, "utf-8");
+        const items = JSON.parse(raw);
+        if (items && items.length > 0) {
+          await TableItem.insertMany(items);
+          console.log(`Seeded ${items.length} table setups to MongoDB!`);
+        }
+      }
     }
-  }
 
-  if (orderCount === 0) {
-    const seedOrders = readSeedFile<OrderRecord[]>(ordersSeedPath, []);
-    if (seedOrders.length > 0) {
-      await orders.insertMany(seedOrders);
+    // 3. Seed Orders (if exist)
+    const ordersCount = await OrderItem.countDocuments();
+    if (ordersCount === 0) {
+      console.log("Database contains 0 orders. Porting legacy order tickets...");
+      if (fs.existsSync(ordersPath)) {
+        const raw = fs.readFileSync(ordersPath, "utf-8");
+        const items = JSON.parse(raw);
+        if (items && items.length > 0) {
+          await OrderItem.insertMany(items);
+          console.log(`Seeded ${items.length} order history items to MongoDB!`);
+        }
+      }
     }
+  } catch (err: any) {
+    console.warn("MongoDB automatic initialization warning:", err.message);
   }
 }
 
-// API Routes
+// API Routes (Updated to query MongoDB database)
 
 // 1. Get Menu list
 app.get("/api/menu", async (req, res) => {
   try {
-    const menu = await getCollection<MenuItem>("menu");
-    const items = await menu.find({}, { projection: { _id: 0 } }).sort({ id: 1 }).toArray();
-    res.json(items);
+    const menu = await MenuItem.find({}).sort({ id: 1 });
+    res.json(menu);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read menu data from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read menu from MongoDB: " + error.message });
+  }
+});
+
+// 1b. Create Menu item (Admin action)
+app.post("/api/menu", async (req, res) => {
+  try {
+    const { name, price, category, description, image } = req.body;
+    if (!name || !price || !category) {
+      return res.status(400).json({ error: "Name, price, and category are required fields." });
+    }
+
+    // Generate unique numerical ID sequential increment
+    const lastItem = await MenuItem.findOne({}).sort({ id: -1 });
+    const nextId = lastItem && typeof lastItem.id === "number" ? lastItem.id + 1 : 1;
+
+    const newItem = new MenuItem({
+      id: nextId,
+      name,
+      price: Number(price),
+      category,
+      description: description || "",
+      image: image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80"
+    });
+
+    await newItem.save();
+    res.status(201).json(newItem);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to create menu item on MongoDB: " + error.message });
   }
 });
 
 // 2. Get Tables list
 app.get("/api/tables", async (req, res) => {
   try {
-    const tables = await getCollection<TableRecord>("tables");
-    const items = await tables.find({}, { projection: { _id: 0 } }).sort({ id: 1 }).toArray();
-    res.json(items);
+    const tables = await TableItem.find({}).sort({ id: 1 });
+    res.json(tables);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read tables data from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read tables listing from MongoDB: " + error.message });
   }
 });
 
 // 3. Get Orders list
 app.get("/api/orders", async (req, res) => {
   try {
-    const orders = await getCollection<OrderRecord>("orders");
-    const items = await orders.find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
-    res.json(items);
+    const orders = await OrderItem.find({}).sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read orders data from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read orders logging from MongoDB: " + error.message });
   }
 });
 
 // 4. Create Order
 app.post("/api/orders", async (req, res) => {
   try {
-    const { tableId, items, total, paymentMethod } = req.body;
+    const { tableId, items, total } = req.body;
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Invalid order. Items are required." });
+      return res.status(400).json({ error: "Invalid order ticket. Purchase Items are required." });
     }
 
-    const orders = await getCollection<OrderRecord>("orders");
-
-    // Generate high-quality sequential ID: ORD-1001, etc.
+    // Compute order sequence number with model query helper
+    const lastOrder = await OrderItem.findOne({ orderId: /^ORD-/ }).sort({ orderId: -1 });
     let nextNum = 1001;
-    const [latestOrder] = await orders
-      .aggregate<{ orderNumber: number }>([
-        { $match: { orderId: /^ORD-\d+$/ } },
-        {
-          $addFields: {
-            orderNumber: {
-              $toInt: { $arrayElemAt: [{ $split: ["$orderId", "-"] }, 1] },
-            },
-          },
-        },
-        { $sort: { orderNumber: -1 } },
-        { $limit: 1 },
-        { $project: { orderNumber: 1 } },
-      ])
-      .toArray();
-
-    if (latestOrder) {
-      nextNum = latestOrder.orderNumber + 1;
+    if (lastOrder && lastOrder.orderId) {
+      const match = String(lastOrder.orderId).match(/ORD-(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
     }
-
     const orderId = `ORD-${nextNum}`;
 
-    const newOrder: OrderRecord = {
+    const newOrder = new OrderItem({
       orderId,
       tableId: tableId ? String(tableId) : "None",
       items,
       total: Number(total),
-      status: "Pending",
-      createdAt: new Date().toISOString(),
-      paymentMethod: paymentMethod ? String(paymentMethod) : undefined,
-    };
+      status: "Pending"
+    });
 
-    await orders.insertOne(newOrder);
-
+    await newOrder.save();
     res.status(201).json(newOrder);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to create order: " + error.message });
+    res.status(500).json({ error: "Failed to submit new Order to MongoDB: " + error.message });
   }
 });
 
@@ -221,30 +214,26 @@ app.patch("/api/orders/:orderId", async (req, res) => {
     const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({ error: "Status field is required." });
-    }
-    if (!["Pending", "Preparing", "Served"].includes(status)) {
-      return res.status(400).json({ error: "Status must be Pending, Preparing, or Served." });
+      return res.status(400).json({ error: "Status field parameter is required." });
     }
 
-    const orders = await getCollection<OrderRecord>("orders");
-    const updatedOrder = await orders.findOneAndUpdate(
-      { orderId },
-      { $set: { status } },
-      { returnDocument: "after", projection: { _id: 0 } }
+    const updated = await OrderItem.findOneAndUpdate(
+      { orderId: String(orderId) },
+      { status },
+      { new: true }
     );
 
-    if (!updatedOrder) {
-      return res.status(404).json({ error: `Order with ID ${orderId} not found.` });
+    if (!updated) {
+      return res.status(404).json({ error: `Order ticket matching ${orderId} is not registered.` });
     }
 
-    res.json(withoutMongoId(updatedOrder));
+    res.json(updated);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to update order: " + error.message });
+    res.status(500).json({ error: "Failed to update dynamic order state: " + error.message });
   }
 });
 
-// Vite full-stack integrations: Mount Vite middleware in dev or static asset server in production
+// Vite full-stack dev server / static assets configuration
 async function setupServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -261,7 +250,7 @@ async function setupServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`RestoFlow Server running on port ${PORT}`);
+    console.log(`RestoFlow Live Server running on http://localhost:${PORT}`);
   });
 }
 
