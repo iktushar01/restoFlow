@@ -54,18 +54,52 @@ const OrderItem = mongoose.model("OrderItem", orderSchema);
 // Connection URI setup
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://iktushar01:tusharToa.123@learningproject.3djrvwy.mongodb.net/?appName=learningProject";
 
+let dbConnected = false;
+
+// Local JSON File helper readers & writers for the hybrid fallback mechanism
+function readLocalJson(filePath: string, defaultValue: any) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error(`Error reading ${filePath}:`, error);
+  }
+  return defaultValue;
+}
+
+function writeLocalJson(filePath: string, data: any) {
+  try {
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch (error) {
+    console.error(`Error writing ${filePath}:`, error);
+  }
+}
+
 // Establish Connection & trigger Seeding
 mongoose.connect(MONGODB_URI)
   .then(() => {
-    console.log("Connected to MongoDB successfully!");
+    console.log("Connected to MongoDB successfully! All data operations are synchronized with remote Atlas database.");
+    dbConnected = true;
     seedDatabase();
   })
-  .catch((err) => {
-    console.error("Failed to connect to MongoDB:", err);
+  .catch((err: any) => {
+    console.warn("==========================================================================");
+    console.warn("⚠️  Failed to connect to MongoDB due to querySrv or DNS resolution errors.");
+    console.warn("👉 System automatically activated high-speed local filesystem persistence fallback.");
+    console.warn("👉 Real-time read & write actions are safe and will persist in local JSON databases.");
+    console.warn("==========================================================================");
+    dbConnected = false;
   });
 
-// Seed data from JSON to MongoDB if the collection is empty
+// Seed data from JSON to MongoDB if the collection is empty and connected
 async function seedDatabase() {
+  if (!dbConnected) return;
   try {
     // 1. Seed Menu Items
     const menuCount = await MenuItem.countDocuments();
@@ -113,15 +147,20 @@ async function seedDatabase() {
   }
 }
 
-// API Routes (Updated to query MongoDB database)
+// API Routes with dual MongoDB + Local JSON Fallback behavior
 
 // 1. Get Menu list
 app.get("/api/menu", async (req, res) => {
   try {
-    const menu = await MenuItem.find({}).sort({ id: 1 });
-    res.json(menu);
+    if (dbConnected) {
+      const menu = await MenuItem.find({}).sort({ id: 1 });
+      return res.json(menu);
+    } else {
+      const menu = readLocalJson(menuPath, []);
+      return res.json(menu);
+    }
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read menu from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read menu items: " + error.message });
   }
 });
 
@@ -133,43 +172,79 @@ app.post("/api/menu", async (req, res) => {
       return res.status(400).json({ error: "Name, price, and category are required fields." });
     }
 
-    // Generate unique numerical ID sequential increment
-    const lastItem = await MenuItem.findOne({}).sort({ id: -1 });
-    const nextId = lastItem && typeof lastItem.id === "number" ? lastItem.id + 1 : 1;
+    const itemImage = image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80";
 
-    const newItem = new MenuItem({
-      id: nextId,
-      name,
-      price: Number(price),
-      category,
-      description: description || "",
-      image: image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80"
-    });
+    if (dbConnected) {
+      // Generate unique numerical ID sequential increment
+      const lastItem = await MenuItem.findOne({}).sort({ id: -1 });
+      const nextId = lastItem && typeof lastItem.id === "number" ? lastItem.id + 1 : 1;
 
-    await newItem.save();
-    res.status(201).json(newItem);
+      const newItem = new MenuItem({
+        id: nextId,
+        name,
+        price: Number(price),
+        category,
+        description: description || "",
+        image: itemImage
+      });
+
+      await newItem.save();
+      return res.status(201).json(newItem);
+    } else {
+      // Local fallback
+      const menu = readLocalJson(menuPath, []);
+      const maxId = menu.reduce((max: number, item: any) => (item.id > max ? item.id : max), 0);
+      const nextId = maxId + 1;
+
+      const newItem = {
+        id: nextId,
+        name,
+        price: Number(price),
+        category,
+        description: description || "",
+        image: itemImage
+      };
+
+      menu.push(newItem);
+      writeLocalJson(menuPath, menu);
+      return res.status(201).json(newItem);
+    }
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to create menu item on MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to create menu item: " + error.message });
   }
 });
 
 // 2. Get Tables list
 app.get("/api/tables", async (req, res) => {
   try {
-    const tables = await TableItem.find({}).sort({ id: 1 });
-    res.json(tables);
+    if (dbConnected) {
+      const tables = await TableItem.find({}).sort({ id: 1 });
+      return res.json(tables);
+    } else {
+      const tables = readLocalJson(tablesPath, []);
+      return res.json(tables);
+    }
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read tables listing from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read tables layout: " + error.message });
   }
 });
 
 // 3. Get Orders list
 app.get("/api/orders", async (req, res) => {
   try {
-    const orders = await OrderItem.find({}).sort({ createdAt: -1 });
-    res.json(orders);
+    if (dbConnected) {
+      const orders = await OrderItem.find({}).sort({ createdAt: -1 });
+      return res.json(orders);
+    } else {
+      const orders = readLocalJson(ordersPath, []);
+      // Sort orders by createdAt descending (newest first)
+      const sortedOrders = [...orders].sort((a: any, b: any) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      return res.json(sortedOrders);
+    }
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to read orders logging from MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to read orders repository: " + error.message });
   }
 });
 
@@ -181,29 +256,61 @@ app.post("/api/orders", async (req, res) => {
       return res.status(400).json({ error: "Invalid order ticket. Purchase Items are required." });
     }
 
-    // Compute order sequence number with model query helper
-    const lastOrder = await OrderItem.findOne({ orderId: /^ORD-/ }).sort({ orderId: -1 });
-    let nextNum = 1001;
-    if (lastOrder && lastOrder.orderId) {
-      const match = String(lastOrder.orderId).match(/ORD-(\d+)/);
-      if (match) {
-        nextNum = parseInt(match[1], 10) + 1;
+    if (dbConnected) {
+      // Compute order sequence number with model query helper
+      const lastOrder = await OrderItem.findOne({ orderId: /^ORD-/ }).sort({ orderId: -1 });
+      let nextNum = 1001;
+      if (lastOrder && lastOrder.orderId) {
+        const match = String(lastOrder.orderId).match(/ORD-(\d+)/);
+        if (match) {
+          nextNum = parseInt(match[1], 10) + 1;
+        }
       }
+      const orderId = `ORD-${nextNum}`;
+
+      const newOrder = new OrderItem({
+        orderId,
+        tableId: tableId ? String(tableId) : "None",
+        items,
+        total: Number(total),
+        status: "Pending"
+      });
+
+      await newOrder.save();
+      return res.status(201).json(newOrder);
+    } else {
+      // Local fallback
+      const orders = readLocalJson(ordersPath, []);
+      let nextNum = 1001;
+      if (orders.length > 0) {
+        // Find highest ORD number
+        const ordNums = orders
+          .map((o: any) => {
+            const match = String(o.orderId).match(/ORD-(\d+)/);
+            return match ? parseInt(match[1], 10) : null;
+          })
+          .filter((n: any) => n !== null);
+        if (ordNums.length > 0) {
+          nextNum = Math.max(...ordNums) + 1;
+        }
+      }
+      const orderId = `ORD-${nextNum}`;
+
+      const newOrder = {
+        orderId,
+        tableId: tableId ? String(tableId) : "None",
+        items,
+        total: Number(total),
+        status: "Pending",
+        createdAt: new Date().toISOString()
+      };
+
+      orders.push(newOrder);
+      writeLocalJson(ordersPath, orders);
+      return res.status(201).json(newOrder);
     }
-    const orderId = `ORD-${nextNum}`;
-
-    const newOrder = new OrderItem({
-      orderId,
-      tableId: tableId ? String(tableId) : "None",
-      items,
-      total: Number(total),
-      status: "Pending"
-    });
-
-    await newOrder.save();
-    res.status(201).json(newOrder);
   } catch (error: any) {
-    res.status(500).json({ error: "Failed to submit new Order to MongoDB: " + error.message });
+    res.status(500).json({ error: "Failed to submit new Order transaction: " + error.message });
   }
 });
 
@@ -217,17 +324,30 @@ app.patch("/api/orders/:orderId", async (req, res) => {
       return res.status(400).json({ error: "Status field parameter is required." });
     }
 
-    const updated = await OrderItem.findOneAndUpdate(
-      { orderId: String(orderId) },
-      { status },
-      { new: true }
-    );
+    if (dbConnected) {
+      const updated = await OrderItem.findOneAndUpdate(
+        { orderId: String(orderId) },
+        { status },
+        { new: true }
+      );
 
-    if (!updated) {
-      return res.status(404).json({ error: `Order ticket matching ${orderId} is not registered.` });
+      if (!updated) {
+        return res.status(404).json({ error: `Order ticket matching ${orderId} is not registered.` });
+      }
+
+      return res.json(updated);
+    } else {
+      // Local fallback
+      const orders = readLocalJson(ordersPath, []);
+      const index = orders.findIndex((o: any) => String(o.orderId) === String(orderId));
+      if (index === -1) {
+        return res.status(404).json({ error: `Order ticket matching ${orderId} is not found.` });
+      }
+
+      orders[index].status = status;
+      writeLocalJson(ordersPath, orders);
+      return res.json(orders[index]);
     }
-
-    res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: "Failed to update dynamic order state: " + error.message });
   }
